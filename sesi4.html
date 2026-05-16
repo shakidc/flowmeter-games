@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sesi 4: Advanced Piping Audit</title>
+    <style>
+        :root {
+            --bg: #0b0b0d; --surface: #16161a; --primary: #ff1744; 
+            --secondary: #00b0ff; --success: #00e676; --text: #ffffff;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        
+        .header-title { color: var(--secondary); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .subtitle { color: #888; margin-bottom: 20px; font-size: 0.95rem; }
+
+        /* Canvas SVG - Blueprint Style */
+        .svg-container {
+            width: 100%; max-width: 900px; background-color: #0c1424;
+            background-image: 
+                linear-gradient(rgba(0, 176, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 176, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            border: 2px solid #1a2b4c; border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            overflow: hidden; user-select: none;
+        }
+
+        /* Styling Elemen SVG */
+        .pipe-outer { fill: none; stroke: #3a3a45; stroke-width: 18; stroke-linejoin: round; stroke-linecap: square; }
+        .pipe-inner { fill: none; stroke: #1e1e24; stroke-width: 10; stroke-linejoin: round; stroke-linecap: square; }
+        
+        /* Animasi Fluida Mengalir di dalam Pipa */
+        .fluid-flow {
+            fill: none; stroke: var(--secondary); stroke-width: 4; stroke-linejoin: round;
+            stroke-dasharray: 15 15; opacity: 0.7;
+            animation: flowAnim 30s linear infinite;
+        }
+        @keyframes flowAnim { to { stroke-dashoffset: -1000; } }
+
+        /* Hotspot Flowmeter */
+        .meter-group { cursor: crosshair; transition: transform 0.2s; }
+        .meter-group:hover .meter-body { stroke: var(--secondary); stroke-width: 2px; }
+        .click-area { fill: transparent; cursor: crosshair; }
+
+        /* Indikator Status */
+        .status-ping { fill: none; stroke-width: 3; opacity: 0; pointer-events: none; }
+        
+        /* Animasi Ping saat ditemukan error (Hijau = Berhasil audit) */
+        .meter-group.found .status-ping { stroke: var(--success); animation: radarPing 1.5s ease-out infinite; }
+        .meter-group.found .meter-screen { fill: var(--success); }
+        
+        /* Animasi Error saat salah klik alat yang benar (Merah = Gagal audit) */
+        .meter-group.wrong .status-ping { stroke: var(--primary); animation: radarPing 0.8s ease-out 1; opacity: 1; }
+        .meter-group.wrong .meter-screen { fill: var(--primary); }
+
+        @keyframes radarPing {
+            0% { r: 10; opacity: 1; }
+            100% { r: 40; opacity: 0; }
+        }
+
+        /* Dashboard UI */
+        .dashboard {
+            width: 100%; max-width: 900px; padding: 20px; background: var(--surface);
+            margin-top: 20px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;
+            border: 1px solid #2f2f38;
+        }
+        .stat-card { text-align: center; border-right: 1px solid #333; display: flex; flex-direction: column; justify-content: center;}
+        .stat-card:last-child { border: none; }
+        .stat-value { font-size: 2.2rem; font-weight: bold; }
+        .stat-label { font-size: 0.8rem; color: #a0a0a2; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .timer-active { color: var(--success); }
+        .timer-warning { color: var(--primary); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        button { background-color: #333; color: #888; border: none; padding: 15px 20px; font-weight: bold; border-radius: 6px; cursor: not-allowed; transition: 0.3s; }
+        button.ready { background-color: var(--secondary); color: #000; cursor: pointer; box-shadow: 0 0 15px rgba(0, 176, 255, 0.4); }
+        button.ready:hover { transform: translateY(-2px); }
+
+        #findings-log { width: 100%; max-width: 900px; margin-top: 15px; padding: 15px; font-size: 0.95rem; color: var(--secondary); background: #0c1424; border: 1px solid #1a2b4c; border-radius: 8px; text-align: center; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <h2 class="header-title">Audit Skema Instalasi Metrologi</h2>
+    <p class="subtitle">Inspeksi P&ID di bawah ini. Terdapat 6 instrumen, klik <b>3 instrumen</b> yang melanggar standar instalasi!</p>
+
+    <div class="svg-container">
+        <svg viewBox="0 0 850 450" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <g id="flowmeter">
+                    <rect class="meter-body" x="-20" y="-15" width="40" height="30" rx="3" fill="#222" stroke="#555" stroke-width="2"/>
+                    <rect class="meter-screen" x="-12" y="-10" width="24" height="12" rx="2" fill="#00b0ff"/>
+                    <rect x="-24" y="-22" width="4" height="44" fill="#888" rx="1"/> <rect x="20" y="-22" width="4" height="44" fill="#888" rx="1"/>  <rect class="click-area" x="-35" y="-35" width="70" height="70"/> <circle class="status-ping" cx="0" cy="0" r="10"/> </g>
+
+                <g id="pump">
+                    <circle cx="0" cy="0" r="22" fill="#333" stroke="#888" stroke-width="2"/>
+                    <circle cx="0" cy="0" r="8" fill="#555"/>
+                    <polygon points="-12,-12 20,0 -12,12" fill="#888"/>
+                    <rect x="-5" y="-25" width="10" height="15" fill="#555"/> </g>
+            </defs>
+
+            <path class="pipe-outer" d="M 40 380 L 320 380 L 320 120 L 440 120 L 440 220 L 560 220 L 560 60 L 740 60 L 740 380"/>
+            <path class="pipe-inner" d="M 40 380 L 320 380 L 320 120 L 440 120 L 440 220 L 560 220 L 560 60 L 740 60 L 740 380"/>
+            
+            <path class="fluid-flow" d="M 40 380 L 320 380 L 320 120 L 440 120 L 440 220 L 560 220 L 560 60 L 740 60 L 740 380"/>
+
+            <rect x="10" y="300" width="50" height="110" fill="#1c2841" stroke="#4a5b82" stroke-width="3" rx="5"/>
+            <text x="35" y="360" fill="#fff" font-size="12" text-anchor="middle" transform="rotate(-90 35,360)">TANGKI AIR</text>
+
+            <use href="#pump" x="120" y="380"/>
+            <path d="M 145 370 L 145 390 M 150 370 L 150 390 M 155 370 L 155 390" stroke="#ff9100" stroke-width="2"/>
+
+            <g class="meter-group" id="fm-1" transform="translate(240, 380)">
+                <use href="#flowmeter"/>
+                <text x="0" y="35" fill="#fff" font-size="12" text-anchor="middle">FM-01</text>
+            </g>
+
+            <g class="meter-group" id="fm-5" transform="translate(320, 260) rotate(-90)">
+                <use href="#flowmeter"/>
+                <text x="0" y="-30" fill="#fff" font-size="12" text-anchor="middle" transform="rotate(90)">FM-02</text>
+            </g>
+
+            <g class="meter-group" id="fm-2" transform="translate(360, 120)">
+                <use href="#flowmeter"/>
+                <text x="0" y="-30" fill="#ff1744" font-size="12" text-anchor="middle">FM-03</text>
+            </g>
+
+            <g class="meter-group" id="fm-3" transform="translate(500, 220)">
+                <use href="#flowmeter"/>
+                <text x="0" y="35" fill="#fff" font-size="12" text-anchor="middle">FM-04</text>
+            </g>
+
+            <g class="meter-group" id="fm-4" transform="translate(650, 60)">
+                <use href="#flowmeter"/>
+                <text x="0" y="-30" fill="#ff1744" font-size="12" text-anchor="middle">FM-05</text>
+            </g>
+
+            <g class="meter-group" id="fm-6" transform="translate(740, 240) rotate(90)">
+                <use href="#flowmeter"/>
+                <text x="0" y="35" fill="#ff1744" font-size="12" text-anchor="middle" transform="rotate(-90)">FM-06</text>
+            </g>
+
+            <path d="M 710 380 L 770 380 L 760 430 L 720 430 Z" fill="#222" stroke="#555" stroke-width="2"/>
+        </svg>
+    </div>
+
+    <div class="dashboard">
+        <div class="stat-card">
+            <div class="stat-value timer-active" id="timer">60s</div>
+            <div class="stat-label">Sisa Waktu Audit</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="count" style="color: var(--success);">0 / 3</div>
+            <div class="stat-label">Anomali Terdeteksi</div>
+        </div>
+        <div class="stat-card">
+            <button id="btn-submit" onclick="sendReport()">Kunci Laporan</button>
+        </div>
+    </div>
+    
+    <div id="findings-log">[SYSTEM READY] Arahkan kursor ke instrumen untuk memindai...</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+    import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAS8X770fb_v80w3Uk0c7dQK8UNHpHuSoM",
+        authDomain: "metrologygame.firebaseapp.com",
+        databaseURL: "https://metrologygame-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "metrologygame",
+        storageBucket: "metrologygame.firebasestorage.app",
+        messagingSenderId: "280925620427",
+        appId: "1:280925620427:web:d2af6a81754d82e450f34e",
+        measurementId: "G-GYBVT2560W"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Database Status Instrumen
+    const meterData = {
+        'fm-2': { type: 'error', desc: "PELANGGARAN: Terlalu dekat dengan belokan (Jarak Upstream < 10D mengakibatkan turbulensi)." },
+        'fm-4': { type: 'error', desc: "PELANGGARAN: Dipasang di titik tertinggi (Risiko Air Pocket / udara terjebak)." },
+        'fm-6': { type: 'error', desc: "PELANGGARAN: Aliran vertikal jatuh bebas (Risiko pipa tidak terisi penuh)." },
+        'fm-1': { type: 'correct', desc: "INSTALASI BENAR: Jarak lurus memadai dan setelah peredam vibrasi." },
+        'fm-3': { type: 'correct', desc: "INSTALASI BENAR: Dipasang di trap bawah (memastikan pipa selalu penuh fluida)." },
+        'fm-5': { type: 'correct', desc: "INSTALASI BENAR: Aliran vertikal ke arah atas melawan gravitasi (pipa pasti terisi penuh)." }
+    };
+
+    let detected = 0;
+    let timeLeft = 60;
+    let timerActive = true;
+    const log = document.getElementById('findings-log');
+    const timerDisplay = document.getElementById('timer');
+
+    // Menempelkan Event Listener ke semua elemen SVG
+    document.querySelectorAll('.meter-group').forEach(meter => {
+        meter.addEventListener('click', function() {
+            if(!timerActive) return;
+
+            const id = this.getAttribute('id');
+            const data = meterData[id];
+
+            // Jika klik alat yang SALAH PASANG (Jawaban Benar)
+            if(data.type === 'error' && !this.classList.contains('found')) {
+                this.classList.add('found');
+                detected++;
+                document.getElementById('count').innerText = `${detected} / 3`;
+                log.style.color = "var(--success)";
+                log.innerText = `[AKURAT] ${id.toUpperCase()} - ${data.desc}`;
+
+                if(detected === 3) {
+                    timerActive = false;
+                    const btn = document.getElementById('btn-submit');
+                    btn.disabled = false;
+                    btn.classList.add('ready');
+                    btn.innerText = "Kirim Hasil Audit";
+                    log.innerText = "[COMPLETE] Seluruh anomali ditemukan. Silakan kirim laporan.";
+                }
+            } 
+            // Jika klik alat yang SUDAH BENAR PASANG (Jawaban Salah)
+            else if (data.type === 'correct' && !this.classList.contains('wrong')) {
+                this.classList.add('wrong');
+                // Penalti waktu 5 detik
+                timeLeft = Math.max(0, timeLeft - 5);
+                log.style.color = "var(--primary)";
+                log.innerText = `[SALAH DIAGNOSIS] ${id.toUpperCase()} - ${data.desc} (Penalti -5 detik)`;
+                
+                // Hapus class wrong agar bisa diklik ulang (opsional animasi ulang)
+                setTimeout(() => this.classList.remove('wrong'), 800);
+            }
+        });
+    });
+
+    const clock = setInterval(() => {
+        if(!timerActive) return;
+        
+        timeLeft--;
+        timerDisplay.innerText = timeLeft + "s";
+        
+        if(timeLeft <= 10) {
+            timerDisplay.classList.remove('timer-active');
+            timerDisplay.classList.add('timer-warning');
+        }
+
+        if(timeLeft <= 0) {
+            clearInterval(clock);
+            timerActive = false;
+            alert("Waktu Habis! Audit Gagal.");
+            sendReport();
+        }
+    }, 1000);
+
+    window.sendReport = async () => {
+        if(detected < 3 && timeLeft <= 0) {
+            alert("Skor dibatalkan karena tidak menyelesaikan audit.");
+            location.reload();
+            return;
+        }
+
+        const name = prompt("Nama Praktisi:") || "Anonymous";
+        const btn = document.getElementById('btn-submit');
+        btn.innerText = "Mengirim...";
+        
+        const finalScore = (detected * 30) + (timeLeft * 2); 
+        
+        try {
+            await push(ref(db, 'leaderboard_sesi4'), {
+                name: name,
+                score: Math.round(finalScore),
+                findings: detected,
+                timestamp: serverTimestamp()
+            });
+            alert(`Audit Tersimpan! Total Skor: ${Math.round(finalScore)}`);
+            location.reload();
+        } catch (error) {
+            alert("Gagal koneksi database.");
+            btn.innerText = "Kunci Laporan";
+        }
+    }
+</script>
+</body>
+</html>

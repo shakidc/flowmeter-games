@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metrology Training Game - Reynolds Tuner</title>
+    
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #121214; --surface-color: #1e1e24;
+            --primary-color: #00e676; --secondary-color: #00b0ff;
+            --text-color: #ffffff; --text-muted: #a0a0a2;
+        }
+        body {
+            background: var(--bg-color); color: var(--text-color);
+            font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        h1 { color: var(--primary-color); }
+        p { color: var(--text-muted); }
+        a {
+            display: inline-block; margin: 10px; padding: 15px 30px;
+            background: var(--secondary-color); color: #000; text-decoration: none;
+            border-radius: 8px; font-weight: bold; transition: background 0.3s;
+        }
+        a:hover { background: var(--primary-color); }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center; margin-top: 50px; color: #00e676;">Selamat Datang di Game Pelatihan Metrologi</h1>
+    <p style="text-align: center; font-size: 1.2rem; color: #888;">Pilih sesi untuk memulai tantangan kalibrasi Anda!</p>
+
+    <div style="display: flex; justify-content: center; gap: 30px; margin-top: 40px;">
+        <a href="index.html" style="padding: 20px 40px; background: #ff4081; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Home</a>
+        <a href="sesi1.html" style="padding: 20px 40px; background: #ff5722; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Sesi 1: The Reynolds Tuner</a>
+        <a href="sesi2.html" style="padding: 20px 40px; background: #00b0ff; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Sesi 2: The Tools Matcher</a>
+        <a href="sesi3.html" style="padding: 20px 40px; background: #00e676; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Sesi 3: The Faraday's Voltage Catcher</a>
+        <a href="sesi4.html" style="padding: 20px 40px; background: #ff4081; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Sesi 4: The Installation Auditor</a>
+    </div>
+</body>
+</html>

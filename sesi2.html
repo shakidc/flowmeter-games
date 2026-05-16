@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sesi 2: The Meter Matcher</title>
+    <script>
+        window.MathJax = { tex: { inlineMath: [['$', '$']] } };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg: #0f0f12; --card: #1e1e26; --primary: #00e676; --secondary: #00b0ff; --text: #ffffff;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 900px; background: var(--card); padding: 30px; border-radius: 15px; border: 1px solid #333; }
+        h2 { color: var(--primary); text-align: center; margin-bottom: 20px; }
+        
+        .factory-layout {
+            display: flex; flex-direction: column; gap: 20px; background: #09090b; padding: 20px; border-radius: 10px; margin-bottom: 25px;
+        }
+        .drop-zone {
+            border: 2px dashed #444; padding: 20px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; transition: 0.3s;
+        }
+        .drop-zone.active { border-color: var(--secondary); background: rgba(0, 176, 255, 0.1); }
+        .drop-zone.correct { border-color: var(--primary); background: rgba(0, 230, 118, 0.1); }
+
+        .meter-vault {
+            display: flex; justify-content: center; gap: 20px; margin-top: 20px; padding: 15px; background: #121214; border-radius: 8px;
+        }
+        .draggable-meter {
+            background: var(--secondary); color: #000; padding: 10px 20px; border-radius: 5px; cursor: grab; font-weight: bold; user-select: none;
+        }
+        .spec-label { font-size: 0.9rem; color: #aaa; max-width: 70%; }
+        button { width: 100%; padding: 15px; background: var(--primary); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        button:disabled { opacity: 0.5; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app">
+    <div id="screen-reg">
+        <h2>Sesi 2: Meter Matcher</h2>
+        <input type="text" id="username" placeholder="Nama Lengkap" style="width:100%; padding:12px; margin-bottom:15px; background:#121214; color:white; border:1px solid #444;">
+        <button onclick="startSession()">Mulai Tantangan</button>
+    </div>
+
+    <div id="screen-game" style="display:none;">
+        <h2>Instalasi Blueprint</h2>
+        <p style="text-align:center; font-size:0.9rem; color:#888;">Tarik jenis meter ke titik instalasi yang sesuai:</p>
+        
+        <div class="factory-layout">
+            <div class="drop-zone" id="zone-A" data-correct="Electromagnetic">
+                <div class="spec-label">
+                    <strong>Titik A:</strong> Pipa Limbah $(\sigma > 5 \mu S/cm)$, Tekanan: $2$ Bar, Sifat: Abrasif.
+                </div>
+                <div class="slot">Drop Here</div>
+            </div>
+            <div class="drop-zone" id="zone-B" data-correct="Ultrasonic">
+                <div class="spec-label">
+                    <strong>Titik B:</strong> Pipa Header Utama $(D = 500 \text{ mm})$, syarat: <em>Non-Intrusive</em>.
+                </div>
+                <div class="slot">Drop Here</div>
+            </div>
+            <div class="drop-zone" id="zone-C" data-correct="Mechanical">
+                <div class="spec-label">
+                    <strong>Titik C:</strong> Jalur Domestik, Budget: Low, Akurasi Standar Class B.
+                </div>
+                <div class="slot">Drop Here</div>
+            </div>
+        </div>
+
+        <div class="meter-vault">
+            <div class="draggable-meter" draggable="true" id="meter1">Electromagnetic</div>
+            <div class="draggable-meter" draggable="true" id="meter2">Ultrasonic</div>
+            <div class="draggable-meter" draggable="true" id="meter3">Mechanical</div>
+        </div>
+
+        <button id="btn-submit" onclick="finalizeSesi2()" disabled>Kirim Laporan Engineering</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+    import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAS8X770fb_v80w3Uk0c7dQK8UNHpHuSoM",
+        authDomain: "metrologygame.firebaseapp.com",
+        databaseURL: "https://metrologygame-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "metrologygame",
+        storageBucket: "metrologygame.firebasestorage.app",
+        messagingSenderId: "280925620427",
+        appId: "1:280925620427:web:d2af6a81754d82e450f34e",
+        measurementId: "G-GYBVT2560W"
+    };
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    let startTime;
+    window.startSession = () => {
+        if(!document.getElementById('username').value) return alert("Isi nama!");
+        document.getElementById('screen-reg').style.display = 'none';
+        document.getElementById('screen-game').style.display = 'block';
+        startTime = Date.now();
+        initDragAndDrop();
+    }
+
+    function initDragAndDrop() {
+        const draggables = document.querySelectorAll('.draggable-meter');
+        const zones = document.querySelectorAll('.drop-zone');
+
+        draggables.forEach(d => {
+            d.addEventListener('dragstart', (e) => e.dataTransfer.setData('text', e.target.innerText));
+        });
+
+        zones.forEach(z => {
+            z.addEventListener('dragover', (e) => e.preventDefault());
+            z.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const data = e.dataTransfer.getData('text');
+                z.querySelector('.slot').innerText = data;
+                z.classList.add('active');
+                checkAllFilled();
+            });
+        });
+    }
+
+    function checkAllFilled() {
+        const slots = document.querySelectorAll('.slot');
+        const allFilled = Array.from(slots).every(s => s.innerText !== "Drop Here");
+        document.getElementById('btn-submit').disabled = !allFilled;
+    }
+
+    window.finalizeSesi2 = async function() {
+        let score = 0;
+        document.querySelectorAll('.drop-zone').forEach(z => {
+            if(z.querySelector('.slot').innerText === z.dataset.correct) score += 33.3;
+        });
+        
+        // Bonus kecepatan (Time factor)
+        const timeSpent = (Date.now() - startTime) / 1000;
+        if(score > 90 && timeSpent < 30) score = 100;
+
+        try {
+            await push(ref(database, 'leaderboard_sesi2'), {
+                name: document.getElementById('username').value,
+                score: Math.round(score),
+                time: timeSpent.toFixed(1),
+                timestamp: serverTimestamp()
+            });
+            alert("Laporan Engineering Diterima!");
+            location.reload();
+        } catch (e) { alert("Error: " + e.message); }
+    }
+</script>
+</body>
+</html>
