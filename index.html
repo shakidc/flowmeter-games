@@ -3,47 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metrology Training Game - Reynolds Tuner</title>
+    <title>Metrology Training Hub - Unimal</title>
+    <link rel="stylesheet" href="global.css">
     
-    <script>
-        window.MathJax = {
-            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
-        };
-    </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
     <style>
-        :root {
-            --bg-color: #121214; --surface-color: #1e1e24;
-            --primary-color: #00e676; --secondary-color: #00b0ff;
-            --text-color: #ffffff; --text-muted: #a0a0a2;
+        .hero { text-align: center; margin: 40px 20px; }
+        .hero h1 { color: var(--primary); font-size: 2.5rem; letter-spacing: 1px; margin-bottom: 10px; }
+        .hero p { color: var(--text-muted); max-width: 600px; margin: 0 auto; line-height: 1.6; }
+
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            padding: 20px;
+            box-sizing: border-box;
         }
-        body {
-            background: var(--bg-color); color: var(--text-color);
-            font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
+
+        .module-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: left;
+            transition: 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
-        h1 { color: var(--primary-color); }
-        p { color: var(--text-muted); }
-        a {
-            display: inline-block; margin: 10px; padding: 15px 30px;
-            background: var(--secondary-color); color: #000; text-decoration: none;
-            border-radius: 8px; font-weight: bold; transition: background 0.3s;
+
+        .module-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 10px 30px rgba(0, 176, 255, 0.1); }
+        .module-card h3 { color: var(--text-main); margin-top: 0; display: flex; align-items: center; gap: 10px; }
+        .module-card p { color: var(--text-muted); font-size: 0.9rem; flex-grow: 1; }
+        .badge { display: inline-block; padding: 4px 8px; background: #222; border-radius: 4px; font-size: 0.8rem; color: var(--primary); margin-bottom: 15px; width: fit-content; }
+        
+        .btn-play {
+            background: transparent; color: var(--primary); border: 1px solid var(--primary);
+            padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;
+            text-align: center; text-decoration: none; display: block; margin-top: 15px; transition: 0.3s;
         }
-        a:hover { background: var(--primary-color); }
+        .btn-play:hover { background: var(--primary); color: #000; }
     </style>
 </head>
 <body>
-    <h1 style="text-align: center; margin-top: 50px; color: #00e676;">Selamat Datang di Game Pelatihan Metrologi</h1>
-    <p style="text-align: center; font-size: 1.2rem; color: #888;">Pilih sesi untuk memulai tantangan kalibrasi Anda!</p>
 
-    <div style="display: flex; justify-content: center; gap: 30px; margin-top: 40px;">
-        <a href="index.html" style="padding: 20px 40px; background: #ff4081; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Home</a>
-        <a href="sesi1.html" style="padding: 20px 40px; background: #ff5722; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Sesi 1: The Reynolds Tuner</a>
-        <a href="sesi2.html" style="padding: 20px 40px; background: #00b0ff; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Sesi 2: The Tools Matcher</a>
-        <a href="sesi3.html" style="padding: 20px 40px; background: #00e676; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Sesi 3: The Faraday's Voltage Catcher</a>
-        <a href="sesi4.html" style="padding: 20px 40px; background: #ff4081; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Sesi 4: The Installation Auditor</a>
-        <a href="leaderboard.html" style="padding: 20px 40px; background: #ff5722; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">Leaderboard</a>
+    <script type="module">
+        import { renderNavbar, icons } from './app.js';
+        
+        // Render Navbar & set status active ke 'home'
+        renderNavbar('home');
+
+        // Render ikon ke dalam kartu modul
+        document.querySelectorAll('.icon-placeholder').forEach(el => {
+            el.innerHTML = icons.play;
+        });
+    </script>
+
+    <div class="hero">
+        <h1>E-Metrology Laboratory</h1>
+        <p>Platform Pelatihan Instrumentasi & Metrologi. Pilih modul simulasi di bawah ini untuk memulai pengujian dan evaluasi kompetensi Anda.</p>
     </div>
+
+    <div class="module-grid">
+        <div class="module-card">
+            <span class="badge">Sesi 1</span>
+            <h3>The Reynolds Tuner</h3>
+            <p>Atur parameter kecepatan dan diameter pipa untuk mencapai target stabilitas Bilangan Reynolds.</p>
+            <a href="sesi1.html" class="btn-play"><span class="icon-placeholder"></span> Mulai Sesi 1</a>
+        </div>
+        <div class="module-card">
+            <span class="badge">Sesi 2</span>
+            <h3>The Meter Matcher</h3>
+            <p>Analisis spesifikasi fluida dan tentukan jenis instrumen flowmeter yang paling tepat untuk setiap titik instalasi.</p>
+            <a href="sesi2.html" class="btn-play"><span class="icon-placeholder"></span> Mulai Sesi 2</a>
+        </div>
+        <div class="module-card">
+            <span class="badge">Sesi 3</span>
+            <h3>Faraday's Voltage Catcher</h3>
+            <p>Simulasi osiloskop: Sesuaikan kekuatan medan magnet (Hukum Faraday) untuk menjaga stabilitas tegangan.</p>
+            <a href="sesi3.html" class="btn-play"><span class="icon-placeholder"></span> Mulai Sesi 3</a>
+        </div>
+        <div class="module-card">
+            <span class="badge">Sesi 4</span>
+            <h3>The Instrument Inspector</h3>
+            <p>Audit visual instalasi lapangan. Temukan anomali fatal pada susunan P&ID industri dalam batas waktu.</p>
+            <a href="sesi4.html" class="btn-play"><span class="icon-placeholder"></span> Mulai Sesi 4</a>
+        </div>
+    </div>
+
 </body>
 </html>

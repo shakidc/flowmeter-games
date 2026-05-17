@@ -3,17 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sesi 4: Advanced Piping Audit</title>
+    <title>Sesi 4: The Instrument Inspector</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Konfigurasi MathJax
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']], // $...$ atau \(...\)
+                displayMath: [['$$', '$$'], ['\\[', '\\]']], // $$...$$ atau \[...\]
+                tags: 'ams' // Penomoran persamaan otomatis
+            },
+            svg: {
+                fontCache: 'global'
+            },
+            loader: {
+                load: ['[tex]/ams'] // Memuat ekstensi AMS untuk math
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <link rel="stylesheet" href="global.css">
     <style>
-        :root {
-            --bg: #0b0b0d; --surface: #16161a; --primary: #ff1744; 
-            --secondary: #00b0ff; --success: #00e676; --text: #ffffff;
-        }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
-        
-        .header-title { color: var(--secondary); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
-        .subtitle { color: #888; margin-bottom: 20px; font-size: 0.95rem; }
-
         /* Canvas SVG - Blueprint Style */
         .svg-container {
             width: 100%; max-width: 900px; background-color: #0c1424;
@@ -75,18 +85,129 @@
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         button { background-color: #333; color: #888; border: none; padding: 15px 20px; font-weight: bold; border-radius: 6px; cursor: not-allowed; transition: 0.3s; }
-        button.ready { background-color: var(--secondary); color: #000; cursor: pointer; box-shadow: 0 0 15px rgba(0, 176, 255, 0.4); }
+        button.ready { background-color: var(--secondary); color: #888; cursor: pointer; box-shadow: 0 0 15px rgba(0, 176, 255, 0.4); }
         button.ready:hover { transform: translateY(-2px); }
 
         #findings-log { width: 100%; max-width: 900px; margin-top: 15px; padding: 15px; font-size: 0.95rem; color: var(--secondary); background: #0c1424; border: 1px solid #1a2b4c; border-radius: 8px; text-align: center; font-family: monospace; }
     </style>
 </head>
 <body>
+    <script type="module">
+        import { renderNavbar, requirePlayerName, db, ref, push, serverTimestamp } from './app.js';
+        renderNavbar();
 
-    <h2 class="header-title">Audit Skema Instalasi Metrologi</h2>
-    <p class="subtitle">Inspeksi P&ID di bawah ini. Terdapat 6 instrumen, klik <b>3 instrumen</b> yang melanggar standar instalasi!</p>
+        let timerActive = false;
+        let detected = 0;
+        let timeLeft = 60;
 
-    <div class="svg-container">
+        requirePlayerName((name) => {
+            document.getElementById('game-content').style.display = 'block';
+            window.playerName = name;
+            timerActive = true;
+        });
+
+        // Database Status Instrumen
+        const meterData = {
+            'fm-2': { type: 'error', desc: "PELANGGARAN: Terlalu dekat dengan belokan (Jarak Upstream < 10D mengakibatkan turbulensi)." },
+            'fm-4': { type: 'error', desc: "PELANGGARAN: Dipasang di titik tertinggi (Risiko Air Pocket / udara terjebak)." },
+            'fm-6': { type: 'error', desc: "PELANGGARAN: Aliran vertikal jatuh bebas (Risiko pipa tidak terisi penuh)." },
+            'fm-1': { type: 'correct', desc: "INSTALASI BENAR: Jarak lurus memadai dan setelah peredam vibrasi." },
+            'fm-3': { type: 'correct', desc: "INSTALASI BENAR: Dipasang di trap bawah (memastikan pipa selalu penuh fluida)." },
+            'fm-5': { type: 'correct', desc: "INSTALASI BENAR: Aliran vertikal ke arah atas melawan gravitasi (pipa pasti terisi penuh)." }
+        };
+
+        const log = document.getElementById('findings-log');
+        const timerDisplay = document.getElementById('timer');
+
+        // Menempelkan Event Listener ke semua elemen SVG
+        document.querySelectorAll('.meter-group').forEach(meter => {
+            meter.addEventListener('click', function() {
+                if(!timerActive) return;
+
+                const id = this.getAttribute('id');
+                const data = meterData[id];
+
+                // Jika klik alat yang SALAH PASANG (Jawaban Benar)
+                if(data.type === 'error' && !this.classList.contains('found')) {
+                    this.classList.add('found');
+                    detected++;
+                    document.getElementById('count').innerText = `${detected} / 3`;
+                    log.style.color = "var(--success)";
+                    log.innerText = `[AKURAT] ${id.toUpperCase()} - ${data.desc}`;
+
+                    if(detected === 3) {
+                        timerActive = false;
+                        const btn = document.getElementById('btn-submit');
+                        btn.disabled = false;
+                        btn.classList.add('ready');
+                        btn.innerText = "Kirim Hasil Audit";
+                        log.innerText = "[COMPLETE] Seluruh anomali ditemukan. Silakan kirim laporan.";
+                    }
+                } 
+                // Jika klik alat yang SUDAH BENAR PASANG (Jawaban Salah)
+                else if (data.type === 'correct' && !this.classList.contains('wrong')) {
+                    this.classList.add('wrong');
+                    // Penalti waktu 5 detik
+                    timeLeft = Math.max(0, timeLeft - 5);
+                    log.style.color = "#ff1744";
+                    log.innerText = `[SALAH DIAGNOSIS] ${id.toUpperCase()} - ${data.desc} (Penalti -5 detik)`;
+                    
+                    // Hapus class wrong agar bisa diklik ulang (opsional animasi ulang)
+                    setTimeout(() => this.classList.remove('wrong'), 800);
+                }
+            });
+        });
+
+        const clock = setInterval(() => {
+            if(!timerActive) return;
+            
+            timeLeft--;
+            timerDisplay.innerText = timeLeft + "s";
+            
+            if(timeLeft <= 10) {
+                timerDisplay.classList.remove('timer-active');
+                timerDisplay.classList.add('timer-warning');
+            }
+
+            if(timeLeft <= 0) {
+                clearInterval(clock);
+                timerActive = false;
+                alert("Waktu Habis! Inspeksi Gagal.");
+                sendReport();
+            }
+        }, 1000);
+
+        window.sendReport = async () => {
+            if(detected < 3 && timeLeft <= 0) {
+                alert("Skor dibatalkan karena tidak menyelesaikan inspeksi.");
+                location.href = 'index.html';
+                return;
+            }
+
+            const finalScore = (detected * 30) + (timeLeft * 2); 
+            
+            try {
+                await push(ref(db, 'leaderboard_sesi4'), {
+                    name: window.playerName,
+                    score: Math.round(finalScore),
+                    findings: detected,
+                    timestamp: serverTimestamp()
+                });
+                alert(`Inspeksi Tersimpan! Total Skor: ${Math.round(finalScore)}`);
+                location.href = 'leaderboard.html';
+            } catch (error) {
+                alert("Gagal koneksi database.");
+                btn.innerText = "Kunci Laporan";
+            }
+        }
+    </script>
+
+    <div id="game-content" class="container" style="display:none; margin-top:80px; max-width:900px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="color:var(--secondary-color); margin:0;">The Instrument Inspector</h2>
+        </div>
+
+        <div class="svg-container">
         <svg viewBox="0 0 850 450" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <g id="flowmeter">
@@ -124,7 +245,7 @@
 
             <g class="meter-group" id="fm-2" transform="translate(360, 120)">
                 <use href="#flowmeter"/>
-                <text x="0" y="-30" fill="#ff1744" font-size="12" text-anchor="middle">FM-03</text>
+                <text x="0" y="-30" fill="#fff" font-size="12" text-anchor="middle">FM-03</text>
             </g>
 
             <g class="meter-group" id="fm-3" transform="translate(500, 220)">
@@ -134,12 +255,12 @@
 
             <g class="meter-group" id="fm-4" transform="translate(650, 60)">
                 <use href="#flowmeter"/>
-                <text x="0" y="-30" fill="#ff1744" font-size="12" text-anchor="middle">FM-05</text>
+                <text x="0" y="-30" fill="#fff" font-size="12" text-anchor="middle">FM-05</text>
             </g>
 
             <g class="meter-group" id="fm-6" transform="translate(740, 240) rotate(90)">
                 <use href="#flowmeter"/>
-                <text x="0" y="35" fill="#ff1744" font-size="12" text-anchor="middle" transform="rotate(-90)">FM-06</text>
+                <text x="0" y="35" fill="#fff" font-size="12" text-anchor="middle" transform="rotate(-90)">FM-06</text>
             </g>
 
             <path d="M 710 380 L 770 380 L 760 430 L 720 430 Z" fill="#222" stroke="#555" stroke-width="2"/>
@@ -161,125 +282,6 @@
     </div>
     
     <div id="findings-log">[SYSTEM READY] Arahkan kursor ke instrumen untuk memindai...</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-    import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAS8X770fb_v80w3Uk0c7dQK8UNHpHuSoM",
-        authDomain: "metrologygame.firebaseapp.com",
-        databaseURL: "https://metrologygame-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "metrologygame",
-        storageBucket: "metrologygame.firebasestorage.app",
-        messagingSenderId: "280925620427",
-        appId: "1:280925620427:web:d2af6a81754d82e450f34e",
-        measurementId: "G-GYBVT2560W"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // Database Status Instrumen
-    const meterData = {
-        'fm-2': { type: 'error', desc: "PELANGGARAN: Terlalu dekat dengan belokan (Jarak Upstream < 10D mengakibatkan turbulensi)." },
-        'fm-4': { type: 'error', desc: "PELANGGARAN: Dipasang di titik tertinggi (Risiko Air Pocket / udara terjebak)." },
-        'fm-6': { type: 'error', desc: "PELANGGARAN: Aliran vertikal jatuh bebas (Risiko pipa tidak terisi penuh)." },
-        'fm-1': { type: 'correct', desc: "INSTALASI BENAR: Jarak lurus memadai dan setelah peredam vibrasi." },
-        'fm-3': { type: 'correct', desc: "INSTALASI BENAR: Dipasang di trap bawah (memastikan pipa selalu penuh fluida)." },
-        'fm-5': { type: 'correct', desc: "INSTALASI BENAR: Aliran vertikal ke arah atas melawan gravitasi (pipa pasti terisi penuh)." }
-    };
-
-    let detected = 0;
-    let timeLeft = 60;
-    let timerActive = true;
-    const log = document.getElementById('findings-log');
-    const timerDisplay = document.getElementById('timer');
-
-    // Menempelkan Event Listener ke semua elemen SVG
-    document.querySelectorAll('.meter-group').forEach(meter => {
-        meter.addEventListener('click', function() {
-            if(!timerActive) return;
-
-            const id = this.getAttribute('id');
-            const data = meterData[id];
-
-            // Jika klik alat yang SALAH PASANG (Jawaban Benar)
-            if(data.type === 'error' && !this.classList.contains('found')) {
-                this.classList.add('found');
-                detected++;
-                document.getElementById('count').innerText = `${detected} / 3`;
-                log.style.color = "var(--success)";
-                log.innerText = `[AKURAT] ${id.toUpperCase()} - ${data.desc}`;
-
-                if(detected === 3) {
-                    timerActive = false;
-                    const btn = document.getElementById('btn-submit');
-                    btn.disabled = false;
-                    btn.classList.add('ready');
-                    btn.innerText = "Kirim Hasil Audit";
-                    log.innerText = "[COMPLETE] Seluruh anomali ditemukan. Silakan kirim laporan.";
-                }
-            } 
-            // Jika klik alat yang SUDAH BENAR PASANG (Jawaban Salah)
-            else if (data.type === 'correct' && !this.classList.contains('wrong')) {
-                this.classList.add('wrong');
-                // Penalti waktu 5 detik
-                timeLeft = Math.max(0, timeLeft - 5);
-                log.style.color = "var(--primary)";
-                log.innerText = `[SALAH DIAGNOSIS] ${id.toUpperCase()} - ${data.desc} (Penalti -5 detik)`;
-                
-                // Hapus class wrong agar bisa diklik ulang (opsional animasi ulang)
-                setTimeout(() => this.classList.remove('wrong'), 800);
-            }
-        });
-    });
-
-    const clock = setInterval(() => {
-        if(!timerActive) return;
-        
-        timeLeft--;
-        timerDisplay.innerText = timeLeft + "s";
-        
-        if(timeLeft <= 10) {
-            timerDisplay.classList.remove('timer-active');
-            timerDisplay.classList.add('timer-warning');
-        }
-
-        if(timeLeft <= 0) {
-            clearInterval(clock);
-            timerActive = false;
-            alert("Waktu Habis! Audit Gagal.");
-            sendReport();
-        }
-    }, 1000);
-
-    window.sendReport = async () => {
-        if(detected < 3 && timeLeft <= 0) {
-            alert("Skor dibatalkan karena tidak menyelesaikan audit.");
-            location.reload();
-            return;
-        }
-
-        const name = prompt("Nama Praktisi:") || "Anonymous";
-        const btn = document.getElementById('btn-submit');
-        btn.innerText = "Mengirim...";
-        
-        const finalScore = (detected * 30) + (timeLeft * 2); 
-        
-        try {
-            await push(ref(db, 'leaderboard_sesi4'), {
-                name: name,
-                score: Math.round(finalScore),
-                findings: detected,
-                timestamp: serverTimestamp()
-            });
-            alert(`Audit Tersimpan! Total Skor: ${Math.round(finalScore)}`);
-            location.reload();
-        } catch (error) {
-            alert("Gagal koneksi database.");
-            btn.innerText = "Kunci Laporan";
-        }
-    }
-</script>
+    </div>
 </body>
 </html>

@@ -3,175 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIVE LEADERBOARD - TOP 10 PRAKTISI</title>
+    <title>Global Leaderboard</title>
+    <link rel="stylesheet" href="global.css">
     
-    <script>
-        window.MathJax = {
-            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
-        };
-    </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
     <style>
-        :root {
-            --bg-color: #0b0b0d; --surface-color: #16161a;
-            --primary-color: #00e676; --secondary-color: #00b0ff;
-            --text-color: #ffffff; --gold: #ffd700;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-color); padding: 40px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { color: var(--primary-color); font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px; }
-        .header p { color: #888; margin-top: 5px; }
-        .board-container { width: 100%; max-width: 900px; background-color: var(--surface-color); border-radius: 16px; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.7); border: 1px solid #2a2a35; }
-        table { width: 100%; border-collapse: collapse; }
-        th { font-size: 1.1rem; color: var(--secondary-color); text-align: left; padding: 15px; border-bottom: 2px solid #2a2a35; text-transform: uppercase; }
-        td { padding: 18px 15px; font-size: 1.2rem; border-bottom: 1px solid #22222a; transition: 0.3s; }
-        .rank-badge { display: inline-block; width: 35px; height: 35px; line-height: 35px; text-align: center; border-radius: 50%; background: #2a2a35; font-weight: bold; }
+        .board-container { width: 100%; max-width: 900px; padding: 20px; box-sizing: border-box; }
+        .header-section { text-align: center; margin: 30px 0; }
+        .header-section h2 { color: var(--primary); text-transform: uppercase; margin: 0; font-size: 1.8rem; }
         
-        tr:nth-child(1) .rank-badge { background: var(--gold); color: #000; font-size: 1.4rem; }
-        tr:nth-child(2) .rank-badge { background: #e0e0e0; color: #000; }
-        tr:nth-child(3) .rank-badge { background: #cd7f32; color: #000; }
-        tr:nth-child(1) td { color: var(--gold); font-weight: bold; font-size: 1.4rem; }
+        .session-nav { display: flex; justify-content: center; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+        .btn-sesi { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: 0.3s; font-weight: bold; }
+        .btn-sesi.active, .btn-sesi:hover { background: var(--primary); color: #000; border-color: var(--primary); }
+
+        .table-wrapper { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { background: #1a1a20; color: var(--text-muted); padding: 15px; font-weight: 600; font-size: 0.9rem; text-transform: uppercase; border-bottom: 2px solid var(--border); }
+        td { padding: 15px; border-bottom: 1px solid var(--border); }
+        tr:last-child td { border-bottom: none; }
         
-        .score-cell { text-align: right; font-weight: bold; color: var(--primary-color); }
-        .status-bar { margin-top: 20px; font-size: 0.9rem; color: #555; display: flex; justify-content: space-between; width: 100%; max-width: 900px; }
+        .rank { display: inline-block; width: 30px; height: 30px; line-height: 30px; text-align: center; background: #2a2a35; border-radius: 50%; font-weight: bold; }
+        tr:nth-child(1) .rank { background: #ffd700; color: #000; } /* Emas */
+        tr:nth-child(2) .rank { background: #c0c0c0; color: #000; } /* Perak */
+        tr:nth-child(3) .rank { background: #cd7f32; color: #000; } /* Perunggu */
+        
+        .score { color: var(--success); font-weight: bold; text-align: right; }
+        .status-bar { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-top: 15px; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>🏆 <span id="session-title">SESI 1: REYNOLDS TUNER</span> 🏆</h1>
-        <p>Pelatihan Metrologi: Pengukuran Meter Air menggunakan Flowmeter</p>
+    <script type="module">
+        import { renderNavbar, db, ref, onValue } from './app.js';
         
-        <div style="margin-top: 15px;">
-            <button onclick="switchSession('leaderboard_sesi1')" style="width:auto; padding: 8px 15px; background: #333; color: white; border-radius: 4px; cursor: pointer; border: 1px solid #444;">Sesi 1</button>
-            <button onclick="switchSession('leaderboard_sesi2')" style="width:auto; padding: 8px 15px; background: #333; color: white; border-radius: 4px; cursor: pointer; border: 1px solid #444;">Sesi 2</button>
-            <button onclick="switchSession('leaderboard_sesi3')" style="width:auto; padding: 8px 15px; background: #333; color: white; border-radius: 4px; cursor: pointer; border: 1px solid #444;">Sesi 3</button>
-            <button onclick="switchSession('leaderboard_sesi4')" style="width:auto; padding: 8px 15px; background: #333; color: white; border-radius: 4px; cursor: pointer; border: 1px solid #444;">Sesi 4</button>
-        </div>
-    </div>
+        renderNavbar('leaderboard');
 
-    <div class="board-container">
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 15%">Posisi</th>
-                    <th style="width: 60%">Nama Praktisi / Instansi</th>
-                    <th style="width: 25%; text-align: right;">Skor Akurasi</th>
-                </tr>
-            </thead>
-            <tbody id="table-body">
-                <tr>
-                    <td colspan="3" style="text-align: center; color: #666;">Menghubungkan ke server...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+        let currentSession = 'leaderboard_sesi1';
+        let unsubscribe = null;
 
-    <div class="status-bar">
-        <span id="update-time">Inisialisasi...</span>
-        <span style="color: var(--primary-color);">⬤ Real-Time Sync Active</span>
-    </div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAS8X770fb_v80w3Uk0c7dQK8UNHpHuSoM",
-        authDomain: "metrologygame.firebaseapp.com",
-        databaseURL: "https://metrologygame-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "metrologygame",
-        storageBucket: "metrologygame.firebasestorage.app",
-        messagingSenderId: "280925620427",
-        appId: "1:280925620427:web:d2af6a81754d82e450f34e",
-        measurementId: "G-GYBVT2560W"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
-    
-    let currentSession = 'leaderboard_sesi1';
-    let unsubscribe = null; // Untuk membersihkan listener lama saat ganti sesi
-
-    function escapeHTML(str) {
-        if (!str) return "";
-        return str.replace(/[&<>'"]/g, 
-            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-        );
-    }
-
-    // Fungsi Load Data yang dibungkus dengan benar
-    const loadData = () => {
-        // Jika ada listener lama, hentikan dulu agar tidak double
-        if (unsubscribe) unsubscribe();
-
-        const sessionRef = ref(database, currentSession);
-        
-        // onValue mengembalikan fungsi unsubscribe
-        unsubscribe = onValue(sessionRef, (snapshot) => {
-            const data = snapshot.val();
-            const tbody = document.getElementById('table-body');
-            
-            if (!data) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #666; padding: 20px;">Belum ada data di sesi ini.</td></tr>`;
-                document.getElementById('update-time').innerText = `Live: 0 Peserta`;
-                return;
-            }
-
-            const players = Object.keys(data).map(key => data[key]);
-            
-            // Sortir: Skor tertinggi, lalu timestamp tercepat
-            players.sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
-
-            const topTen = players.slice(0, 10);
-            tbody.innerHTML = "";
-
-            topTen.forEach((player, index) => {
-                // Tambahkan info waktu (Sesi 2) atau Re (Sesi 1) jika ada
-                const extraInfo = player.time ? `<br><small style="color:#666">Selesai dalam ${player.time}s</small>` : "";
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td><span class="rank-badge">${index + 1}</span></td>
-                        <td>${escapeHTML(player.name)}${extraInfo}</td>
-                        <td class="score-cell">${player.score} Pts</td>
-                    </tr>
-                `;
-            });
-
-            document.getElementById('update-time').innerText = `Live: ${players.length} Praktisi Terdaftar`;
-        }, (error) => {
-            console.error("Firebase Error: ", error);
-            document.getElementById('table-body').innerHTML = `<tr><td colspan="3" style="text-align: center; color: #ff1744;">Koneksi terputus.</td></tr>`;
-        });
-    }
-
-    // Daftarkan switchSession ke objek window agar bisa dipanggil tombol HTML
-    window.switchSession = (session) => {
-        currentSession = session;
-
-        // Pemetaan judul berdasarkan ID sesi
         const sessionTitles = {
-            'leaderboard_sesi1': "SESI 1: REYNOLDS TUNER",
-            'leaderboard_sesi2': "SESI 2: METER MATCHER",
-            'leaderboard_sesi3': "SESI 3: FARADAY'S VOLTAGE CATCHER",
-            'leaderboard_sesi4': "SESI 4: THE PIPING INSPECTOR"
+            'leaderboard_sesi1': "The Reynolds Tuner",
+            'leaderboard_sesi2': "The Meter Matcher",
+            'leaderboard_sesi3': "Faraday's Voltage Catcher",
+            'leaderboard_sesi4': "The Instrument Inspector"
         };
 
-        // Update judul di UI
-        const titleElement = document.getElementById('session-title');
-        if (titleElement) {
-            titleElement.innerText = sessionTitles[session] || "LEADERBOARD";
+        function escapeHTML(str) { return str ? str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)) : ""; }
+
+        window.switchSession = (session) => {
+            currentSession = session;
+            document.getElementById('board-title').innerText = `TOP 10: ${sessionTitles[session]}`;
+            
+            // Update tombol active
+            document.querySelectorAll('.btn-sesi').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${session}`).classList.add('active');
+
+            loadData();
+        };
+
+        function loadData() {
+            if (unsubscribe) unsubscribe(); // Hentikan listener sesi sebelumnya
+            
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">Memuat data real-time...</td></tr>`;
+
+            unsubscribe = onValue(ref(db, currentSession), (snapshot) => {
+                const data = snapshot.val();
+                if (!data) {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">Belum ada praktisi yang tercatat di sesi ini.</td></tr>`;
+                    document.getElementById('live-status').innerText = `Peserta: 0`;
+                    return;
+                }
+
+                const players = Object.values(data);
+                // Sortir skor tertinggi, waktu tercepat
+                players.sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
+                
+                tbody.innerHTML = "";
+                players.slice(0, 10).forEach((p, index) => {
+                    // Tambahan info tergantung sesi (misal: Sesi 4 punya temuan)
+                    let extra = "";
+                    if(p.time) extra = ` <span style="color:#888; font-size:0.8rem;">(${p.time}s)</span>`;
+                    if(p.findings !== undefined) extra = ` <span style="color:#888; font-size:0.8rem;">(${p.findings} Anomali)</span>`;
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="width: 10%;"><span class="rank">${index + 1}</span></td>
+                            <td><strong>${escapeHTML(p.name)}</strong>${extra}</td>
+                            <td class="score">${p.score} Pts</td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('live-status').innerText = `Peserta Terdaftar: ${players.length} | Real-Time Sync Active`;
+            });
         }
 
-        // Muat ulang data dari Firebase berdasarkan sesi yang dipilih
-        loadData();
-    }
+        // Panggil saat load pertama kali
+        window.switchSession('leaderboard_sesi1');
+    </script>
 
-    // Panggil loadData pertama kali saat halaman dimuat
-    loadData();
-</script>
+    <div class="board-container">
+        <div class="header-section">
+            <h2 id="board-title">TOP 10: The Reynolds Tuner</h2>
+        </div>
+
+        <div class="session-nav">
+            <button id="btn-leaderboard_sesi1" class="btn-sesi" onclick="switchSession('leaderboard_sesi1')">Sesi 1</button>
+            <button id="btn-leaderboard_sesi2" class="btn-sesi" onclick="switchSession('leaderboard_sesi2')">Sesi 2</button>
+            <button id="btn-leaderboard_sesi3" class="btn-sesi" onclick="switchSession('leaderboard_sesi3')">Sesi 3</button>
+            <button id="btn-leaderboard_sesi4" class="btn-sesi" onclick="switchSession('leaderboard_sesi4')">Sesi 4</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Posisi</th>
+                        <th>Nama / Instansi</th>
+                        <th style="text-align: right;">Skor</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    </tbody>
+            </table>
+        </div>
+        <div class="status-bar" id="live-status">Menghubungkan ke server...</div>
+    </div>
+
 </body>
 </html>

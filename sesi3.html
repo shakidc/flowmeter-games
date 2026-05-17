@@ -4,128 +4,91 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sesi 3: Faraday's Voltage Catcher</title>
+    <link rel="stylesheet" href="global.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <style>
-        :root { --bg: #0b0b0d; --primary: #00e676; --secondary: #00b0ff; --text: #eee; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 800px; background: #16161a; padding: 25px; border-radius: 12px; border: 1px solid #2a2a35; }
-        .oscillo-box { background: #000; border: 2px solid #333; border-radius: 8px; margin: 20px 0; position: relative; }
-        .controls { background: #1f1f27; padding: 20px; border-radius: 8px; margin-top: 15px; }
-        input[type="range"] { width: 100%; accent-color: var(--primary); }
-        .target-info { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; }
-        button { width: 100%; padding: 15px; background: var(--secondary); border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: #000; }
-    </style>
+    <script>
+        // Konfigurasi MathJax
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']], // $...$ atau \(...\)
+                displayMath: [['$$', '$$'], ['\\[', '\\]']], // $$...$$ atau \[...\]
+                tags: 'ams' // Penomoran persamaan otomatis
+            },
+            svg: {
+                fontCache: 'global'
+            },
+            loader: {
+                load: ['[tex]/ams'] // Memuat ekstensi AMS untuk math
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
 </head>
 <body>
+    <script type="module">
+        import { renderNavbar, requirePlayerName, db, ref, push, serverTimestamp } from './app.js';
+        renderNavbar();
 
-<div class="container">
-    <h2 style="text-align: center; color: var(--primary);">Sesi 3: Faraday's Voltage Catcher</h2>
-    <p style="font-size: 0.9rem; color: #888; text-align: center;">Sesuaikan $B$ (Medan Magnet) agar $E$ tetap di Target Zone!</p>
+        let chart, totalScore = 0, ticks = 0;
 
-    <div class="oscillo-box">
-        <canvas id="oscilloChart"></canvas>
-    </div>
-
-    <div class="controls">
-        <div class="target-info">
-            <span>Kekuatan Magnet ($B$): <span id="val-b" style="color:var(--primary)">1.0</span> T</span>
-            <span>Tegangan Terukur ($E$): <span id="val-e" style="color:var(--secondary)">0.0</span> mV</span>
-        </div>
-        <input type="range" id="slide-b" min="0.1" max="5.0" step="0.1" value="1.0">
-        
-        <div style="margin-top: 20px;">
-            <div id="accuracy-display" style="text-align: center; font-size: 1.2rem; margin-bottom: 10px;">Akurasi: 0%</div>
-            <button id="btn-submit" onclick="submitFinal()">Kirim Hasil Kalibrasi</button>
-        </div>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-    import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAS8X770fb_v80w3Uk0c7dQK8UNHpHuSoM",
-        authDomain: "metrologygame.firebaseapp.com",
-        databaseURL: "https://metrologygame-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "metrologygame",
-        storageBucket: "metrologygame.firebasestorage.app",
-        messagingSenderId: "280925620427",
-        appId: "1:280925620427:web:d2af6a81754d82e450f34e",
-        measurementId: "G-GYBVT2560W"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    const ctx = document.getElementById('oscilloChart').getContext('2d');
-    let velocity = 2.0; // Simulasi v yang fluktuatif
-    let totalScore = 0;
-    let ticks = 0;
-
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: Array(30).fill(''),
-            datasets: [
-                { label: 'Tegangan Terukur (E)', data: [], borderColor: '#00e676', tension: 0.4, borderWidth: 3 },
-                { label: 'Target Zone', data: [], borderColor: 'rgba(0, 176, 255, 0.3)', backgroundColor: 'rgba(0, 176, 255, 0.1)', fill: true, pointRadius: 0 }
-            ]
-        },
-        options: {
-            animation: false,
-            scales: { y: { min: 0, max: 20, grid: { color: '#222' } }, x: { display: false } }
-        }
-    });
-
-    function updateSimulation() {
-        // 1. Fluktuasi kecepatan v (gangguan sistem)
-        velocity += (Math.random() - 0.5) * 0.5;
-        if(velocity < 0.5) velocity = 0.5;
-        if(velocity > 4.5) velocity = 4.5;
-
-        // 2. Baca input Magnet (B)
-        const B = parseFloat(document.getElementById('slide-b').value);
-        document.getElementById('val-b').innerText = B.toFixed(1);
-
-        // 3. Hitung E = B * v * k (k konstanta diameter pipa)
-        const E = B * velocity * 1.5;
-        document.getElementById('val-e').innerText = E.toFixed(2);
-
-        // 4. Update Target (Target statis di 10 mV)
-        const target = 10;
-        const diff = Math.abs(E - target);
-        const accuracy = Math.max(0, 100 - (diff * 10));
-        
-        totalScore += accuracy;
-        ticks++;
-        document.getElementById('accuracy-display').innerText = `Akurasi: ${Math.round(totalScore/ticks)}%`;
-
-        // Update Chart
-        chart.data.datasets[0].data.push(E);
-        chart.data.datasets[1].data.push(target);
-        if(chart.data.datasets[0].data.length > 30) {
-            chart.data.datasets[0].data.shift();
-            chart.data.datasets[1].data.shift();
-        }
-        chart.update();
-    }
-
-    const simInterval = setInterval(updateSimulation, 200);
-
-    window.submitFinal = async () => {
-        clearInterval(simInterval);
-        const finalAcc = Math.round(totalScore/ticks);
-        const name = prompt("Masukkan Nama Anda:") || "Anonymous";
-        
-        await push(ref(db, 'leaderboard_sesi3'), {
-            name: name,
-            score: finalAcc,
-            timestamp: serverTimestamp()
+        requirePlayerName((name) => {
+            document.getElementById('game-content').style.display = 'block';
+            window.playerName = name;
+            initChart();
+            setInterval(updateSimulation, 200);
         });
-        alert("Data Kalibrasi Tersimpan!");
-        location.reload();
-    };
-</script>
+
+        function initChart() {
+            const ctx = document.getElementById('oscilloChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array(30).fill(''),
+                    datasets: [
+                        { label: 'Sinyal Elektroda (mV)', borderColor: '#00e676', data: Array(30).fill(0), tension: 0.4 },
+                        { label: 'Target (10 mV)', borderColor: '#ff1744', borderDash: [5, 5], data: Array(30).fill(10) }
+                    ]
+                },
+                options: { animation: false, scales: { y: { min: 0, max: 20 } } }
+            });
+        }
+
+        function updateSimulation() {
+            const B = parseFloat(document.getElementById('slide-b').value);
+            const E = B * 1.5 * 5; // Rumus asli: E = Bvd
+            
+            chart.data.datasets[0].data.push(E);
+            chart.data.datasets[0].data.shift();
+            chart.update();
+
+            const accuracy = Math.max(0, 100 - Math.abs(E - 10) * 10);
+            totalScore += accuracy;
+            ticks++;
+            document.getElementById('accuracy-display').innerText = `Akurasi: ${Math.round(totalScore/ticks)}%`;
+            document.getElementById('val-b').innerText = B.toFixed(2);
+        }
+
+        window.submitSesi3 = async () => {
+            await push(ref(db, 'leaderboard_sesi3'), {
+                name: window.playerName,
+                score: Math.round(totalScore/ticks),
+                timestamp: serverTimestamp()
+            });
+            location.href = 'leaderboard.html';
+        };
+    </script>
+
+    <div id="game-content" class="container" style="display:none; margin-top:80px;">
+        <h2 style="color:var(--primary-color)">Sesi 3: Faraday's Voltage Catcher</h2>
+        <div style="background:#000; padding:15px; border-radius:12px; border:2px solid #333;">
+            <canvas id="oscilloChart" height="120"></canvas>
+        </div>
+        <div style="text-align:center; margin:15px 0; font-weight:bold; font-size:1.2rem;" id="accuracy-display">Akurasi: 0%</div>
+        <div class="controls" style="background:var(--surface-color); padding:20px; border-radius:12px;">
+            <p>Kuat Medan Magnet ($B$): <span id="val-b" style="color:var(--secondary-color)">0.00</span> Tesla</p>
+            <input type="range" id="slide-b" min="0.00" max="5" step="0.05" value="0.00" style="width:100%; accent-color:var(--secondary-color);">
+            <button class="btn-primary" onclick="submitSesi3()" style="width:100%; margin-top:20px;">Kunci Sinyal</button>
+        </div>
+    </div>
 </body>
 </html>
